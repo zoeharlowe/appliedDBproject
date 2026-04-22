@@ -1,3 +1,5 @@
+import datetime
+
 import pymysql
 
 conn = pymysql.connect(
@@ -48,12 +50,97 @@ def view_attendees_by_company():
 
 # 3. Add new attendee function
 def add_new_attendee():
+    cursor = conn.cursor()
+
+    # Get attendee details
+    # ID
+    attendee_id = int(input("Attendee ID: "))
+    # Check if Attendee ID already exists
+    check_attendee_sql = "SELECT * FROM attendee WHERE attendeeID = %s"
+
+    cursor.execute(check_attendee_sql, (attendee_id,))
+    existing = cursor.fetchone()
+
+    if existing:
+        print(f"*** ERROR ***: Attendee {attendee_id} already exists.")
+        return
+    # Name
+    name = input("Name: ")
+    # DOB
+    dob = datetime.datetime.strptime(input("DOB (YYYY-MM-DD): "), "%Y-%m-%d")
+    # Gender
+    gender = input("Gender: ")
+    gender_initial = gender.upper()[0]  # Get the first letter and convert to uppercase
+    if gender not in ['M', 'F', 'Male', 'Female', 'm', 'f']:
+        print("*** ERROR ***: Gender must be Male/Female")
+        return
+    # Company ID
+    company_id = int(input("Enter attendee's company ID: "))
+    check_company_sql = "SELECT * FROM attendee WHERE attendeeCompanyID = %s"
+    cursor.execute(check_company_sql, (company_id,))
+    company_row = cursor.fetchone()
+
+    if not company_row:
+        print("Company ID does not exist.")
+        return
+    print("Attendee successfully added.")
+
+    # Insert attendee into database
+    ins = "INSERT INTO attendee (attendeeID, attendeeName, attendeeDOB, attendeeGender, attendeeCompanyID) VALUES (%s, %s, %s, %s, %s)"
+
+    with cursor:
+        try:
+            rowsAffected = cursor.execute(ins, (attendee_id, name, dob, gender_initial, company_id))
+            conn.commit()
+            if (rowsAffected == 0):
+                print("No attendee added.")
+        except Exception as e:
+            print(f"Error occurred: {e}")
+
+
+    # 2. First name, surname, address
+    first_name = input("Enter first name: ")
+    surname = input("Enter surname: ")
+    address = input("Enter address: ")
+
+    # 3. Doctor ID (validate integer)
+    doctor_input = input("Enter doctor ID: ")
+    if not doctor_input.isdigit():
+        print("Invalid input. Doctor ID must be an integer.")
+        return
+
+    doctorid = int(doctor_input)
+
+    # Check if doctor exists
+    check_doctor_sql = "SELECT * FROM doctor_table WHERE doctorid = %s"
+    cursor.execute(check_doctor_sql, (doctorid,))
+    doctor_row = cursor.fetchone()
+
+    if not doctor_row:
+        print("Doctor ID does not exist.")
+        return
+
+    # 4. Insert patient
+    insert_sql = """
+        INSERT INTO patient_table (ppsn, first_name, surname, address, doctorid)
+        VALUES (%s, %s, %s, %s, %s)
+    """
+
+    try:
+        rowsAffected = cursor.execute(insert_sql, (ppsn, first_name, surname, address, doctorid))
+        conn.commit()
+        if rowsAffected == 0:
+            print("No patient added.")
+        else:
+            print("Patient added successfully.")
+    except Exception as e:
+        print(f"Error occurred: {e}")
+
+
     # The user is asked to enter the following details for a new attendee:
     # ID, name, DOB, Gender, ID attendee’s company
     # “Attendee successfully added” should be shown, and the user returned to the main menu
     # Error handling in brief
-    pass
-
 
 # 4. View connected attendees function
 def view_connected_attendees():
