@@ -47,95 +47,67 @@ def view_attendees_by_company():
     # User is asked to enter a valid company ID until one has been entered
     pass
 
-
 # 3. Add new attendee function
+import datetime
+import pymysql
+
 def add_new_attendee():
     cursor = conn.cursor()
 
-    # Get attendee details
-    # ID
-    attendee_id = int(input("Attendee ID: "))
-    # Check if Attendee ID already exists
+    # Attendee ID
+    attendee_id = input("Attendee ID : ")
+
+    # Check if attendee ID exists
     check_attendee_sql = "SELECT * FROM attendee WHERE attendeeID = %s"
-
     cursor.execute(check_attendee_sql, (attendee_id,))
-    existing = cursor.fetchone()
+    if cursor.fetchone():
+        print(f"*** ERROR *** Attendee ID: {attendee_id} already exists.")
+        return
 
-    if existing:
-        print(f"*** ERROR ***: Attendee {attendee_id} already exists.")
+    # 2. Name
+    name = input("Name : ")
+
+    # 3. DOB
+    dob = input("DOB : ")
+
+    # 4. Gender
+    gender = input("Gender : ")
+    gender = gender.strip().lower()
+    if gender in ['m', 'male']:
+        gender_value = 'Male'
+    elif gender in ['f', 'female']:
+        gender_value = 'Female'
+    else:
+        print("*** ERROR *** Gender must be Male/Female")
         return
-    # Name
-    name = input("Name: ")
-    # DOB
-    dob = datetime.datetime.strptime(input("DOB (YYYY-MM-DD): "), "%Y-%m-%d")
-    # Gender
-    gender = input("Gender: ")
-    gender_initial = gender.upper()[0]  # Get the first letter and convert to uppercase
-    if gender not in ['M', 'F', 'Male', 'Female', 'm', 'f']:
-        print("*** ERROR ***: Gender must be Male/Female")
-        return
+
     # Company ID
-    company_id = int(input("Enter attendee's company ID: "))
-    check_company_sql = "SELECT * FROM attendee WHERE attendeeCompanyID = %s"
+    company_id = input("Company ID : ")
+
+    # Check if company exists 
+    check_company_sql = "SELECT * FROM company WHERE companyID = %s"
     cursor.execute(check_company_sql, (company_id,))
-    company_row = cursor.fetchone()
-
-    if not company_row:
-        print("Company ID does not exist.")
-        return
-    print("Attendee successfully added.")
-
-    # Insert attendee into database
-    ins = "INSERT INTO attendee (attendeeID, attendeeName, attendeeDOB, attendeeGender, attendeeCompanyID) VALUES (%s, %s, %s, %s, %s)"
-
-    with cursor:
-        try:
-            rowsAffected = cursor.execute(ins, (attendee_id, name, dob, gender_initial, company_id))
-            conn.commit()
-            if (rowsAffected == 0):
-                print("No attendee added.")
-        except Exception as e:
-            print(f"Error occurred: {e}")
-
-
-    # 2. First name, surname, address
-    first_name = input("Enter first name: ")
-    surname = input("Enter surname: ")
-    address = input("Enter address: ")
-
-    # 3. Doctor ID (validate integer)
-    doctor_input = input("Enter doctor ID: ")
-    if not doctor_input.isdigit():
-        print("Invalid input. Doctor ID must be an integer.")
+    if not cursor.fetchone():
+        print(f"*** ERROR *** Company ID: {company_id} does not exist.")
         return
 
-    doctorid = int(doctor_input)
-
-    # Check if doctor exists
-    check_doctor_sql = "SELECT * FROM doctor_table WHERE doctorid = %s"
-    cursor.execute(check_doctor_sql, (doctorid,))
-    doctor_row = cursor.fetchone()
-
-    if not doctor_row:
-        print("Doctor ID does not exist.")
-        return
-
-    # 4. Insert patient
+    # Insert attendee
     insert_sql = """
-        INSERT INTO patient_table (ppsn, first_name, surname, address, doctorid)
+        INSERT INTO attendee (attendeeID, attendeeName, attendeeDOB, attendeeGender, attendeeCompanyID)
         VALUES (%s, %s, %s, %s, %s)
     """
 
     try:
-        rowsAffected = cursor.execute(insert_sql, (ppsn, first_name, surname, address, doctorid))
+        rowsAffected = cursor.execute(insert_sql, (attendee_id, name, dob, gender_value, company_id))
         conn.commit()
-        if rowsAffected == 0:
-            print("No patient added.")
-        else:
-            print("Patient added successfully.")
-    except Exception as e:
-        print(f"Error occurred: {e}")
 
+        if rowsAffected == 0:
+            print("No attendee added.")
+        else:
+            print("Attendee successfully added.")
+
+    except pymysql.MySQLError as e:
+        print(f"*** ERROR *** {e.args}")
 
     # The user is asked to enter the following details for a new attendee:
     # ID, name, DOB, Gender, ID attendee’s company
