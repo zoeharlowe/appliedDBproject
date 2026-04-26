@@ -23,22 +23,97 @@ def display_menu():
     print("4 - View Connected Attendees")
     print("5 - Add Attendee Connection")
     print("6 - View Rooms")
-    print("7 - Exit application")
+    print("x - Exit application")
 
 
 # 1. View speakers and sessions function
 def view_speakers_and_sessions():
-    # For each speaker whose name is a partial match, the following details are shown:
-    # speaker’s name, title of session, name of room 
-    
-    # If no speaker matches the search string the following message is shown:
-    # 'No speakers found of that name'
-    # User returned to main menu
-    pass
+    name = input("Enter speaker name : ")
+
+    cursor = conn.cursor()
+
+    # Check speaker exists
+    check_sql = "SELECT speakerName FROM session WHERE speakerName LIKE %s"
+    cursor.execute(check_sql, ('%' + name + '%',))
+    speaker_exists = cursor.fetchone()
+
+    if not speaker_exists:
+        print("\nNo speakers found of that name.")
+        return
+
+    # Full query for sessions + rooms
+    query = """
+        SELECT s.speakerName, s.sessionTitle, r.roomName
+        FROM session s
+        JOIN room r ON s.roomID = r.roomID
+        WHERE s.speakerName LIKE %s
+    """
+
+    cursor.execute(query, ('%' + name + '%',))
+    sessions = cursor.fetchall()
+
+    print("\nSessions found:")
+    for s in sessions:
+        print(s['speakerName'], '|', s['sessionTitle'], '|', s['roomName'])
 
 
-# 2. View attendees by company function
+#2. View attendees by company function
 def view_attendees_by_company():
+    cursor = conn.cursor()
+
+    while True:
+        company_id = input("Enter company ID : ")
+
+        # Must be numeric and > 0
+        if not company_id.isdigit():
+            continue
+
+        if int(company_id) <= 0:
+            continue
+
+        # Check if company exists
+        company_name_query = "SELECT companyName FROM company WHERE companyID = %s"
+        cursor.execute(company_name_query, (company_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            continue   # company doesn't exist → reprompt
+
+        company_name = row['companyName']
+
+        # Check if company has attendees
+        query = """
+            SELECT a.attendeeName, a.attendeeDOB, s.sessionTitle, s.speakerName, r.roomName
+            FROM attendee a
+            JOIN company c ON a.attendeeCompanyID = c.companyID
+            JOIN registration reg ON a.attendeeID = reg.attendeeID
+            JOIN session s ON reg.sessionID = s.sessionID
+            JOIN room r ON s.roomID = r.roomID
+            WHERE c.companyID = %s
+        """
+
+        cursor.execute(query, (company_id,))
+        sessions = cursor.fetchall()
+
+        # Company exists but has no attendees → print message and return
+        if not sessions:
+            print(f"{company_name} Attendees")
+            print(f"No attendees found for {company_name}")
+            return
+
+        # VALID company with attendees → print results
+        print(f"\n{company_name} Attendees")
+        for s in sessions:
+            print(
+                s['attendeeName'], '|',
+                s['attendeeDOB'], '|',
+                s['sessionTitle'], '|',
+                s['speakerName'], '|',
+                s['roomName']
+            )
+        return
+
+
     # The user is asked to enter a company ID.
     # When a valid (numeric) company ID is entered, the company name is shown, along with:
     # The name of each attendee, date of birth, title of the session attended,
@@ -65,7 +140,7 @@ def add_new_attendee():
         return
 
     # 2. Name
-    name = input("Name : ")
+    attendee_name = input("Name : ")
 
     # 3. DOB
     dob = input("DOB : ")
@@ -98,7 +173,7 @@ def add_new_attendee():
     """
 
     try:
-        rowsAffected = cursor.execute(insert_sql, (attendee_id, name, dob, gender_value, company_id))
+        rowsAffected = cursor.execute(insert_sql, (attendee_id, attendee_name, dob, gender_value, company_id))
         conn.commit()
 
         if rowsAffected == 0:
@@ -109,10 +184,6 @@ def add_new_attendee():
     except pymysql.MySQLError as e:
         print(f"*** ERROR *** {e.args}")
 
-    # The user is asked to enter the following details for a new attendee:
-    # ID, name, DOB, Gender, ID attendee’s company
-    # “Attendee successfully added” should be shown, and the user returned to the main menu
-    # Error handling in brief
 
 # 4. View connected attendees function
 def view_connected_attendees():
@@ -135,6 +206,21 @@ def add_attendee_connection():
 
 # 6. View rooms function
 def view_rooms():
+    query = """
+        SELECT roomID, roomName, capacity
+        FROM room
+        """
+
+    cursor = conn.cursor()
+    cursor.execute(query)
+    rooms = cursor.fetchall()
+
+    if not rooms:
+        print("\nNo rooms found.")
+        return
+
+    for r in rooms:
+        print(r['roomID'], '|', r['roomName'], '|', r['capacity'])
     # When this option is chosen the Room ID, Room name, Capacity of all rooms is shown
     # Any new rooms manually added to the MySQL database, after this option has been chosen
     # for the first time, should not be displayed until the user exits and restarts the application.
@@ -174,7 +260,7 @@ def main():
             view_rooms()
             display_menu()
 
-        elif choice == "7":
+        elif choice == "x" or choice == "X":
             print("Exiting application.")
             break
 
