@@ -1,6 +1,13 @@
 import datetime
-
+from neo4j import GraphDatabase
 import pymysql
+
+neo4j_driver = None
+
+def connect_neo4j():
+    uri = "bolt://localhost:7687"
+    return GraphDatabase.driver(uri, auth=("neo4j", "neo4jneo4j"))
+
 
 conn = pymysql.connect(
     host='localhost',
@@ -187,6 +194,43 @@ def add_new_attendee():
 
 # 4. View connected attendees function
 def view_connected_attendees():
+    global neo4j_driver
+    cursor = conn.cursor()
+
+    # 1. Ask for attendee ID
+    attendee_id = input("Enter attendee ID: ")
+
+    # Must be numeric
+    if not attendee_id.isdigit():
+        print("*** ERROR *** Attendee ID must be numeric.")
+        return
+
+    # 2. Check attendee exists in MySQL
+    check_sql = "SELECT attendeeName FROM attendee WHERE attendeeID = %s"
+    cursor.execute(check_sql, (attendee_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        print(f"*** ERROR *** Attendee ID {attendee_id} does not exist.")
+        return
+
+    attendee_name = row["attendeeName"]
+
+    # 3. Query Neo4j for connected attendees
+    cypher = """
+        MATCH (a:Attendee {id: $id})-[:CONNECTED_TO]-(other)
+        RETURN other.id AS id, other.name AS name
+        ORDER BY other.name
+    """
+
+    with neo4j_driver.session() as session:
+        results = list(session.run(cypher, {"id": attendee_id}))
+
+    # 4. Print results
+    print(f"\nConnections for {attendee_name} (ID {attendee_id}):")
+    for result in results:
+        print(f"  - {result['name']} (ID: {result['id']})")
+
     # The user is asked to enter an attendee ID.
     # The name of the attendee as well as the ID and name of all other attendees
     # that have a CONNECTED_TO relationship (in either direction) to this attendee are shown
@@ -228,6 +272,8 @@ def view_rooms():
 
 
 def main():
+    global neo4j_driver
+    neo4j_driver = connect_neo4j()
 
     # Show display menu
     display_menu()
@@ -267,6 +313,8 @@ def main():
         else:
             print("Invalid choice.")
             display_menu()
+
+    neo4j_driver.close()
 
 
 if __name__ == "__main__":
