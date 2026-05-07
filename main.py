@@ -204,7 +204,7 @@ def view_connected_attendees():
         print("*** ERROR *** Attendee ID must be numeric.")
         return
 
-    # 2. Check attendee exists in MySQL
+    # Check attendee exists in MySQL
     check_sql = "SELECT attendeeName FROM attendee WHERE attendeeID = %s"
     cursor.execute(check_sql, (attendee_id,))
     row = cursor.fetchone()
@@ -215,30 +215,102 @@ def view_connected_attendees():
 
     attendee_name = row["attendeeName"]
 
-    # 3. Query Neo4j for connected attendees
+    # Query Neo4j for connected attendees
     cypher = """
-        MATCH (a:Attendee {id: $id})-[:CONNECTED_TO]-(other)
-        RETURN other.id AS id, other.name AS name
-        ORDER BY other.name
+        MATCH (a:Attendee {AttendeeID: $id})-[:CONNECTED_TO]-(other)
+        RETURN other.AttendeeID AS id
+        ORDER BY other.AttendeeID
     """
 
     with neo4j_driver.session() as session:
-        results = list(session.run(cypher, {"id": attendee_id}))
+        results = list(session.run(cypher, {"id": int(attendee_id)}))
 
     # 4. Print results
     print(f"\nConnections for {attendee_name} (ID {attendee_id}):")
-    for result in results:
-        print(f"  - {result['name']} (ID: {result['id']})")
+
+    if not results:
+        print("No connected attendees found.")
+        return
+
+    for r in results:
+        print(r["id"])
 
     # The user is asked to enter an attendee ID.
     # The name of the attendee as well as the ID and name of all other attendees
     # that have a CONNECTED_TO relationship (in either direction) to this attendee are shown
     # Error handling in brief
-    pass
 
 
 # 5. Add attendee connection function
 def add_attendee_connection():
+    global neo4j_driver
+    cursor = conn.cursor()
+
+    # --- 1. Get Attendee IDs ---
+    a1 = input("Enter first attendee ID: ")
+    a2 = input("Enter second attendee ID: ")
+
+    # IDs must be numeric and not equal
+    if not a1.isdigit() or not a2.isdigit():
+        print("*** ERROR *** Attendee IDs must be numeric.")
+        return
+
+    if a1 == a2:
+        print("*** ERROR *** Cannot connect an attendee to themselves.")
+        return
+
+    # --- 2. Check both attendees exist in MySQL ---
+    check_sql = "SELECT attendeeName FROM attendee WHERE attendeeID = %s"
+
+    cursor.execute(check_sql, (a1,))
+    row1 = cursor.fetchone()
+
+    cursor.execute(check_sql, (a2,))
+    row2 = cursor.fetchone()
+
+    if not row1:
+        print(f"*** ERROR *** Attendee ID {a1} does not exist.")
+        return
+
+    if not row2:
+        print(f"*** ERROR *** Attendee ID {a2} does not exist.")
+        return
+
+    name1 = row1["attendeeName"]
+    name2 = row2["attendeeName"]
+
+    # --- 3. Check if relationship already exists in Neo4j ---
+    check_rel = """
+        MATCH (a:Attendee {AttendeeID: $a1})-[:CONNECTED_TO]-(b:Attendee {AttendeeID: $a2})
+        RETURN a
+    """
+
+    with neo4j_driver.session() as session:
+        rel_exists = session.run(check_rel, {"a1": int(a1), "a2": int(a2)}).single()
+
+        if rel_exists:
+            print(f"*** ERROR *** {name1} and {name2} are already connected.")
+            return
+
+    # --- 4. Create nodes if they don't exist ---
+    create_nodes = """
+        MERGE (a:Attendee {AttendeeID: $a1})
+        MERGE (b:Attendee {AttendeeID: $a2})
+    """
+
+    # --- 5. Create the CONNECTED_TO relationship ---
+    create_rel = """
+        MATCH (a:Attendee {AttendeeID: $a1})
+        MATCH (b:Attendee {AttendeeID: $a2})
+        MERGE (a)-[:CONNECTED_TO]-(b)
+    """
+
+    with neo4j_driver.session() as session:
+        session.run(create_nodes, {"a1": int(a1), "a2": int(a2)})
+        session.run(create_rel, {"a1": int(a1), "a2": int(a2)})
+
+    print(f"Connection created between {name1} (ID {a1}) and {name2} (ID {a2}).")
+
     # The user is asked to enter 2 Attendee IDs.
     # If these attendee IDs exist in the MySQL database, and neither actor has a CONNECTED_TO
     # relationship in the Neo4j database, then a CONNECTED_TO relationship should be created
