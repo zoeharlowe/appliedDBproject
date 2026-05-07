@@ -5,9 +5,8 @@ import pymysql
 neo4j_driver = None
 
 def connect_neo4j():
-    uri = "bolt://localhost:7687"
+    uri = "neo4j://localhost:7687"
     return GraphDatabase.driver(uri, auth=("neo4j", "neo4jneo4j"))
-
 
 conn = pymysql.connect(
     host='localhost',
