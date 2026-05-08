@@ -63,7 +63,7 @@ def view_speakers_and_sessions():
         print(s['speakerName'], '|', s['sessionTitle'], '|', s['roomName'])
 
 
-#2. View attendees by company function
+# 2. View attendees by company function
 def view_attendees_by_company():
     cursor = conn.cursor()
 
@@ -89,7 +89,7 @@ def view_attendees_by_company():
 
         # Check if company has attendees
         query = """
-            SELECT a.attendeeName, a.attendeeDOB, s.sessionTitle, s.speakerName, r.roomName
+            SELECT a.attendeeName, a.attendeeDOB, s.sessionTitle, s.speakerName, r.roomName, s.sessionDate
             FROM attendee a
             JOIN company c ON a.attendeeCompanyID = c.companyID
             JOIN registration reg ON a.attendeeID = reg.attendeeID
@@ -115,6 +115,7 @@ def view_attendees_by_company():
                 s['attendeeDOB'], '|',
                 s['sessionTitle'], '|',
                 s['speakerName'], '|',
+                s['sessionDate'], '|',
                 s['roomName']
             )
         return
@@ -190,8 +191,6 @@ def add_new_attendee():
     except pymysql.MySQLError as e:
         print(f"*** ERROR *** {e.args}")
 
-
-# 4. View connected attendees function
 def view_connected_attendees():
     global neo4j_driver
     cursor = conn.cursor()
@@ -199,54 +198,59 @@ def view_connected_attendees():
     # 1. Ask for attendee ID
     attendee_id = input("Enter attendee ID: ")
 
-    # Must be numeric
     if not attendee_id.isdigit():
         print("*** ERROR *** Attendee ID must be numeric.")
         return
 
-    # Check attendee exists in MySQL
-    check_sql = "SELECT attendeeName FROM attendee WHERE attendeeID = %s"
-    cursor.execute(check_sql, (attendee_id,))
+    # 2. Check attendee exists in MySQL
+    sql = "SELECT attendeeName FROM attendee WHERE attendeeID = %s"
+    cursor.execute(sql, (attendee_id,))
     row = cursor.fetchone()
 
+    # CASE 1: Attendee does NOT exist in MySQL → automatic error
     if not row:
-        print(f"*** ERROR *** Attendee ID {attendee_id} does not exist.")
+        print("*** ERROR *** Attendee ID does not exist.")
         return
 
     attendee_name = row["attendeeName"]
 
-    # Query Neo4j for connected attendees
+    # 3. Check Neo4j for connections (IDs only)
     cypher = """
-        MATCH (a:Attendee {AttendeeID: $id})-[:CONNECTED_TO]-(other)
-        RETURN other.AttendeeID AS id
-        ORDER BY other.AttendeeID
+        MATCH (a:Attendee {AttendeeID: $id})-[:CONNECTED_TO]-(b:Attendee)
+        RETURN b.AttendeeID AS id
+        ORDER BY b.AttendeeID
     """
 
     with neo4j_driver.session() as session:
         results = list(session.run(cypher, {"id": int(attendee_id)}))
 
-    # 4. Print results
     print(f"\nConnections for {attendee_name} (ID {attendee_id}):")
 
+    # CASE 2: Exists in MySQL but NOT in Neo4j
     if not results:
-        print("No connected attendees found.")
+        print("No connections")
         return
 
+    # CASE 3: Exists in both → show connected attendees
     for r in results:
-        print(r["id"])
+        connected_id = r["id"]
 
-    # The user is asked to enter an attendee ID.
-    # The name of the attendee as well as the ID and name of all other attendees
-    # that have a CONNECTED_TO relationship (in either direction) to this attendee are shown
-    # Error handling in brief
+        # Look up name in MySQL
+        cursor.execute(
+            "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
+            (connected_id,)
+        )
+        name_row = cursor.fetchone()
+        connected_name = name_row["attendeeName"] if name_row else "Unknown"
 
+        print(f"{connected_id} | {connected_name}")
 
 # 5. Add attendee connection function
 def add_attendee_connection():
     global neo4j_driver
     cursor = conn.cursor()
 
-    # --- 1. Get Attendee IDs ---
+    # Get Attendee IDs
     a1 = input("Enter first attendee ID: ")
     a2 = input("Enter second attendee ID: ")
 
