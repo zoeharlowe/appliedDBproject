@@ -1,0 +1,8 @@
+GitHub Repository Link:
+https://github.com/zoeharlowe/appliedDBproject
+
+Access:
+This repository is publicly accessible.
+
+Notes:
+This repository contains the full project, including regular commits documenting development progress.
