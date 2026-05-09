@@ -37,7 +37,7 @@ USE appdbproj;
 1. Open Command Prompt.
 2. Change directory to the \bin\ folder of neo4j-community-edition.
 3. Enter the command 'neo4j.bat console'.
-4. Go to https://localhost.7867 on your browser.
+4. Go to http://localhost.7474// on your browser (or whichever port number is output by the command prompt).
 5. Run the Neo4j Schema in `appdbprojNeo4j.txt` to create all required nodes and relationships.
 
 ## Installation
