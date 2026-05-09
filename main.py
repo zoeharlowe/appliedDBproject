@@ -12,7 +12,7 @@ def connect_neo4j():
 conn = pymysql.connect(
     host='localhost',
     user='root',
-    password='',
+    password='root',
     db='appdbproj',
     cursorclass=pymysql.cursors.DictCursor
 )
@@ -131,19 +131,7 @@ def view_attendees_by_company():
             )
         return
 
-
-    # The user is asked to enter a company ID.
-    # When a valid (numeric) company ID is entered, the company name is shown, along with:
-    # The name of each attendee, date of birth, title of the session attended,
-    # name of the speaker, name of the room
-    # A valid company ID is any number greater than 0.
-    # User is asked to enter a valid company ID until one has been entered
-    pass
-
 # 3. Add new attendee function
-import datetime
-import pymysql
-
 def add_new_attendee():
     cursor = conn.cursor()
 
