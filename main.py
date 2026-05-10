@@ -82,58 +82,58 @@ def view_speakers_and_sessions():
 def view_attendees_by_company():
     cursor = conn.cursor()
 
+    # Get valid numeric company ID
     while True:
-        company_id = input("Enter company ID : ")
+        company_id = input("Enter Company ID : ").strip()
 
-        # Must be numeric and > 0
-        if not company_id.isdigit():
+        if not company_id.isdigit() or int(company_id) <= 0:
+            print(RED + "*** ERROR *** Company ID must be a number greater than 0." + RESET)
             continue
+        break
 
-        if int(company_id) <= 0:
-            continue
+    # Check if company exists
+    cursor.execute("SELECT companyName FROM company WHERE companyID = %s", (company_id,))
+    row = cursor.fetchone()
 
-        # Check if company exists
-        company_name_query = "SELECT companyName FROM company WHERE companyID = %s"
-        cursor.execute(company_name_query, (company_id,))
-        row = cursor.fetchone()
-
-        if not row:
-            print(RED + f"*** ERROR *** Company with ID {company_id} doesn't exist" + RESET)
-            continue 
-
-        company_name = row['companyName']
-
-        # Check if company has attendees
-        query = """
-            SELECT a.attendeeName, a.attendeeDOB, s.sessionTitle, s.speakerName, r.roomName, s.sessionDate
-            FROM attendee a
-            JOIN company c ON a.attendeeCompanyID = c.companyID
-            JOIN registration reg ON a.attendeeID = reg.attendeeID
-            JOIN session s ON reg.sessionID = s.sessionID
-            JOIN room r ON s.roomID = r.roomID
-            WHERE c.companyID = %s
-        """
-
-        cursor.execute(query, (company_id,))
-        sessions = cursor.fetchall()
-
-        # Company exists but has no attendees → print message and return
-        if not sessions:
-            print(RED + f"No attendees found for {company_name}" + RESET)
-            return
-
-        # VALID company with attendees → print results
-        print(GREEN + f"\n{company_name} Attendees" + RESET)
-        for s in sessions:
-            print(
-                s['attendeeName'], '|',
-                s['attendeeDOB'], '|',
-                s['sessionTitle'], '|',
-                s['speakerName'], '|',
-                s['sessionDate'], '|',
-                s['roomName']
-            )
+    if not row:
+        print(RED + f"*** ERROR *** Company ID {company_id} does not exist." + RESET)
         return
+
+    company_name = row["companyName"]
+    print(f"\n{company_name} Attendees")
+
+    # LEFT JOIN to show all attendees even if they have no session
+    query = """
+        SELECT 
+            a.attendeeName,
+            a.attendeeDOB,
+            s.sessionTitle,
+            s.speakerName,
+            r.roomName
+        FROM attendee a
+        JOIN company c ON a.attendeeCompanyID = c.companyID
+        LEFT JOIN registration reg ON a.attendeeID = reg.attendeeID
+        LEFT JOIN session s ON reg.sessionID = s.sessionID
+        LEFT JOIN room r ON s.roomID = r.roomID
+        WHERE c.companyID = %s
+        ORDER BY a.attendeeName
+    """
+
+    cursor.execute(query, (company_id,))
+    rows = cursor.fetchall()
+
+    if not rows:
+        print(RED + f"No attendees found for {company_name}" + RESET)
+        return
+
+    # Print results
+    for r in rows:
+        session_title = r["sessionTitle"] if r["sessionTitle"] else "No session registrations"
+        speaker = r["speakerName"] if r["speakerName"] else "N/A"
+        room = r["roomName"] if r["roomName"] else "N/A"
+
+        print(f"{r['attendeeName']} | {r['attendeeDOB']} | {session_title} | {speaker} | {room}")
+
 
 # 3. Add new attendee function
 def add_new_attendee():
@@ -149,13 +149,13 @@ def add_new_attendee():
         print(RED + f"*** ERROR *** Attendee ID: {attendee_id} already exists." + RESET)
         return
 
-    # 2. Name
+    # Name
     attendee_name = input("Name : ")
 
-    # 3. DOB
+    # DOB
     dob = input("DOB : ")
 
-    # 4. Gender
+    # Gender
     gender = input("Gender : ")
     gender = gender.strip().lower()
     if gender in ['m', 'male']:
