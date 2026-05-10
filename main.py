@@ -100,7 +100,7 @@ def view_attendees_by_company():
         return
 
     company_name = row["companyName"]
-    print(f"\n{company_name} Attendees")
+    print(GREEN + f"\n{company_name} Attendees" + RESET)
 
     # LEFT JOIN to show all attendees even if they have no session
     query = """
