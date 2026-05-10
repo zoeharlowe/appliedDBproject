@@ -46,7 +46,7 @@ def loading():
 
 # 1. View speakers and sessions function
 def view_speakers_and_sessions():
-    name = input("Enter speaker name : ")
+    name = input("\nEnter speaker name : ")
 
     cursor = conn.cursor()
 
@@ -56,6 +56,8 @@ def view_speakers_and_sessions():
     speaker_exists = cursor.fetchone()
 
     if not speaker_exists:
+        print(RED + "\nSessions details for " + name + ":" + RESET)
+        print("-------------------------------------")
         print(RED + "\nNo speakers found of that name." + RESET)
         return
 
@@ -70,7 +72,8 @@ def view_speakers_and_sessions():
     cursor.execute(query, ('%' + name + '%',))
     sessions = cursor.fetchall()
 
-    print(GREEN + "\nSessions found:" + RESET)
+    print(GREEN + "\nSessions details for " + name + ":" + RESET)
+    print("-------------------------------------")
     for s in sessions:
         print(s['speakerName'], '|', s['sessionTitle'], '|', s['roomName'])
 
@@ -95,7 +98,8 @@ def view_attendees_by_company():
         row = cursor.fetchone()
 
         if not row:
-            continue   # company doesn't exist → reprompt
+            print(RED + f"*** ERROR *** Company with ID {company_id} doesn't exist" + RESET)
+            continue 
 
         company_name = row['companyName']
 
@@ -169,7 +173,7 @@ def add_new_attendee():
     check_company_sql = "SELECT * FROM company WHERE companyID = %s"
     cursor.execute(check_company_sql, (company_id,))
     if not cursor.fetchone():
-        print(RED + f"*** ERROR *** Company ID: {company_id} does not exist." + RESET)
+        print(RED + f"*** ERROR *** Company ID: {company_id} does not exist" + RESET)
         return
 
     # Insert attendee
@@ -255,60 +259,51 @@ def add_attendee_connection():
     global neo4j_driver
     cursor = conn.cursor()
 
-    # Function to repeatedly prompt for a valid attendee ID
-    def get_valid_attendee(prompt_text):
-        while True:
-            att_id = input(prompt_text)
+    # Input two Attendee IDs
+    a1 = input("Enter Attendee 1 ID : ").strip()
+    a2 = input("Enter Attendee 2 ID : ").strip()
 
-            # Must be numeric
-            if not att_id.isdigit():
-                print(RED + "*** ERROR *** Attendee ID must be numeric." + RESET)
-                continue
+    # Validate numeric
+    if not a1.isdigit() or not a2.isdigit():
+        print(RED + "*** ERROR *** Attendee IDs must be numbers" + RESET)
+        return
 
-            # Check existence in MySQL
-            cursor.execute(
-                "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
-                (att_id,)
-            )
-            row = cursor.fetchone()
+    # Validate not equal
+    if a1 == a2:
+        print(RED + "*** ERROR *** An attendee cannot connect to him/herself" + RESET)
+        return
+    
+     # Validate both attendees together
+    check_sql = "SELECT attendeeID, attendeeName FROM attendee WHERE attendeeID IN (%s, %s)"
+    cursor.execute(check_sql, (a1, a2))
+    rows = cursor.fetchall()
 
-            if not row:
-                print(RED + "*** ERROR *** Attendee ID does not exist." + RESET)
-                continue
+    if len(rows) != 2:
+        print(RED + "*** ERROR *** One or both attendee IDs do not exist." + RESET)
+        return
+    
+    # Extract names
+    name1 = None
+    name2 = None
+    for row in rows:
+        if str(row["attendeeID"]) == a1:
+            name1 = row["attendeeName"]
+        else:
+            name2 = row["attendeeName"]
 
-            # Valid → return ID + name
-            return att_id, row["attendeeName"]
-
-    # Get first attendee ID 
-    a1, name1 = get_valid_attendee("Enter Attendee ID 1: ")
-
-    # Get second attendee ID
-    while True:
-        a2, name2 = get_valid_attendee("Enter Attendee ID 2: ")
-
-        if a2 == a1:
-            print(RED + "*** ERROR *** An attendee cannot connect to him/herself." + RESET)
-            continue
-
-        break
-
-    # Check if relationship already exists in Neo4j
-    loading()
+    # --- Check if relationship already exists in Neo4j ---
     check_rel = """
         MATCH (a:Attendee {AttendeeID: $a1})-[:CONNECTED_TO]-(b:Attendee {AttendeeID: $a2})
         RETURN a
     """
 
     with neo4j_driver.session() as session:
-        rel_exists = session.run(
-            check_rel, {"a1": int(a1), "a2": int(a2)}
-        ).single()
+        rel_exists = session.run(check_rel, {"a1": int(a1), "a2": int(a2)}).single()
+        if rel_exists:
+            print(RED + f"*** ERROR *** {name1} and {name2} are already connected." + RESET)
+            return
 
-    if rel_exists:
-        print(RED + f"*** ERROR *** {name1} and {name2} are already connected." + RESET)
-        return
-
-    # Create nodes if missing
+    # Create nodes if needed
     create_nodes = """
         MERGE (a:Attendee {AttendeeID: $a1})
         MERGE (b:Attendee {AttendeeID: $a2})
@@ -325,7 +320,7 @@ def add_attendee_connection():
         session.run(create_nodes, {"a1": int(a1), "a2": int(a2)})
         session.run(create_rel, {"a1": int(a1), "a2": int(a2)})
 
-    print(GREEN + f"Attendee {a1} is now connected to Attendee {a2}" + RESET)
+    print(GREEN + f"Connection created between {name1} (ID {a1}) and {name2} (ID {a2})." + RESET)
 
 # 6. View rooms function
 def view_rooms():
