@@ -291,7 +291,8 @@ def add_attendee_connection():
         else:
             name2 = row["attendeeName"]
 
-    # --- Check if relationship already exists in Neo4j ---
+    # Check if relationship already exists in Neo4j
+    loading()
     check_rel = """
         MATCH (a:Attendee {AttendeeID: $a1})-[:CONNECTED_TO]-(b:Attendee {AttendeeID: $a2})
         RETURN a
@@ -300,7 +301,7 @@ def add_attendee_connection():
     with neo4j_driver.session() as session:
         rel_exists = session.run(check_rel, {"a1": int(a1), "a2": int(a2)}).single()
         if rel_exists:
-            print(RED + f"*** ERROR *** {name1} and {name2} are already connected." + RESET)
+            print(RED + f"*** ERROR *** These attendees are already connected." + RESET)
             return
 
     # Create nodes if needed
