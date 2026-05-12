@@ -75,10 +75,10 @@ The GitHub link is included in **GitLink.txt** in the project root.
 
 ## Bibliography
 - I used Microsoft Copilot to help me get this program working on a Virtual Machine. See conversation relating to PATH issues: https://copilot.microsoft.com/shares/hYZyhfH3RA9cTiNEuvnF7
-- Tutorial on ANSI colours: https://codehs.com/tutorial/andy/ansi-colors
+- Tutorial on ANSI colours: https://codehs.com/tutorial/andy/ansi-colors, https://sentry.io/answers/print-colored-text-to-terminal-with-python/
 - DataCamp: Setting up Neo4j: https://www.datacamp.com/tutorial/neo4j-tutorial?utm_cid=23340058065&utm_aid=192632748929&utm_campaign=230119_1-ps-dscia~dsa-tofu~python_2-b2c_3-emea_4-prc_5-na_6-na_7-le_8-pdsh-go_9-nb-e_10-na_11-na&utm_loc=9040158-&utm_mtd=-c&utm_kw=&utm_source=google&utm_medium=paid_search&utm_content=ps-dscia~emea-en~dsa~tofu~tutorial~python&gad_source=1&gad_campaignid=23340058065&gbraid=0AAAAADQ9WsGzbvcZCQrP5xHzGuOX46QB1&gclid=CjwKCAjwn4vQBhBsEiwAq3hhNzj0veh6MhgzLtNpC238-GwyKa_Pe7c5_qCtzv_ApUDkZbr9hCoIsxoCCy0QAvD_BwE
 - Lecture videos from the Applied Databases module (Lecturer: Gerard Harrison) to write the SQL and Neo4j commands in the code
-- Copilot and DataCamp to insert a 'Loading...' animation while waiting for Neo4j requests: https://www.datacamp.com/tutorial/progress-bars-in-python
+- Copilot and DataCamp to insert a 'Loading...' animation while waiting for Neo4j requests: https://www.datacamp.com/tutorial/progress-bars-in-python, https://copilot.microsoft.com/shares/PuTDBJ6qgoX4bWCBgbPdB
 
 ## Author
 Zoe McNamara Harlowe
